@@ -252,7 +252,7 @@ TEXT ·Ger(SB), NOSPLIT, $0
 	CMPQ N, $0
 	JE   end
 
-	MOVDDUP alpha+16(FP), X0
+	MOVDDUP alpha+16(FP), ALPHA
 
 	MOVQ x_base+24(FP), X_PTR
 	MOVQ y_base+56(FP), Y_PTR
@@ -425,16 +425,10 @@ r1c1:
 
 	ADDQ $SIZE, Y_PTR
 
-r1end:
-	ADDQ INC_X, X_PTR
-	MOVQ Y, Y_PTR
-	ADDQ LDA, A_ROW
-	MOVQ A_ROW, A_PTR
-
 end:
 	RET
 
-inc:  // Algorithm for incY > 0 ( split loads in kernel )
+inc:  // Algorithm for incY != 1 ( split loads in kernel )
 
 	MOVQ incY+80(FP), INC_Y       // INC_Y = incY * sizeof(float64)
 	SHLQ $3, INC_Y
@@ -592,12 +586,6 @@ inc_r1c1:
 	STORE_1x1
 
 	ADDQ INC_Y, Y_PTR
-
-inc_r1end:
-	ADDQ INC_X, X_PTR
-	MOVQ Y, Y_PTR
-	ADDQ LDA, A_ROW
-	MOVQ A_ROW, A_PTR
 
 inc_end:
 	RET
