@@ -9,10 +9,7 @@ package f32
 // Ger performs the rank-one operation
 //  A += alpha * x * y^T
 // where A is an m×n dense matrix, x and y are vectors, and alpha is a scalar.
-func Ger(m, n uintptr, alpha float32,
-	x []float32, incX uintptr,
-	y []float32, incY uintptr,
-	a []float32, lda uintptr) {
+func Ger(m, n uintptr, alpha float32, x []float32, incX uintptr, y []float32, incY uintptr, a []float32, lda uintptr) {
 
 	if incX == 1 && incY == 1 {
 		x = x[:m]
@@ -24,15 +21,11 @@ func Ger(m, n uintptr, alpha float32,
 	}
 
 	var ky, kx uintptr
-	if int(incY) > 0 {
-		ky = 0
-	} else {
-		ky = -(n - 1) * incY
+	if int(incY) < 0 {
+		ky = uintptr(-int(n-1) * int(incY))
 	}
-	if int(incX) > 0 {
-		kx = 0
-	} else {
-		kx = -(m - 1) * incX
+	if int(incX) < 0 {
+		kx = uintptr(-int(m-1) * int(incX))
 	}
 
 	ix := kx
