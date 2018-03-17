@@ -551,18 +551,10 @@ r1c1:
 	KERNEL_1x1
 	STORE_1x1
 
-	ADDQ $SIZE, Y_PTR
-
-r1end:
-	ADDQ $SIZE, X_PTR
-	MOVQ Y, Y_PTR
-	ADDQ LDA, A_ROW
-	MOVQ A_ROW, A_PTR
-
 end:
 	RET
 
-inc:  // Alogrithm for incY > 0 ( split loads in kernel )
+inc:  // Algorithm for incY != 0 ( split loads in kernel )
 
 	MOVQ incX+48(FP), INC_X       // INC_X = incX * sizeof(float32)
 	SHLQ $BITSIZE, INC_X
@@ -755,19 +747,11 @@ inc_r1c2:
 
 inc_r1c1:
 	TESTQ $1, N_DIM
-	JZ    end
+	JZ    inc_end
 
 	// 1x1 KERNEL
 	KERNEL_1x1
 	STORE_1x1
-
-	ADDQ INC_Y, Y_PTR
-
-inc_r1end:
-	ADDQ INC_X, X_PTR
-	MOVQ Y, Y_PTR
-	ADDQ LDA, A_ROW
-	MOVQ A_ROW, A_PTR
 
 inc_end:
 	RET
