@@ -8,35 +8,42 @@ package f32
 
 import (
 	"fmt"
-	"math"
 	"testing"
-
-	"gonum.org/v1/gonum/blas/testblas"
 )
 
 var gerTests = []struct {
-	name string
-	a    []float32
-	m    uintptr
-	n    uintptr
-	x    []float32
-	y    []float32
-
-	want []float32
-}{
-	{
-		name: "Unit",
-		m:    1,
-		n:    1,
-		a:    []float32{10},
+	x, y, a []float32
+	want    []float32
+}{ // m x n ( kernels executed )
+	{ // 1 x 1 (1x1)
 		x:    []float32{2},
 		y:    []float32{4.4},
+		a:    []float32{10},
 		want: []float32{18.8},
 	},
-	{
-		name: "M gt N",
-		m:    5,
-		n:    3,
+	{ // 3 x 2 ( 2x2, 1x2 )
+		x: []float32{-2, -3, 0},
+		y: []float32{-1.1, 5},
+		a: []float32{
+			1.3, 2.4,
+			2.6, 2.8,
+			-1.3, -4.3,
+		},
+		want: []float32{3.5, -7.6, 5.9, -12.2, -1.3, -4.3},
+	},
+	{ // 3 x 3 ( 2x2, 2x1, 1x2, 1x1 )
+		x: []float32{-2, 7, 12},
+		y: []float32{-1.1, 0, 6},
+		a: []float32{
+			1.3, 2.4, 3.5,
+			2.6, 2.8, 3.3,
+			-1.3, -4.3, -9.7,
+		},
+		want: []float32{3.5, 2.4, -8.5, -5.1, 2.8, 45.3, -14.5, -4.3, 62.3},
+	},
+	{ // 5 x 3 ( 4x2, 4x1, 1x2, 1x1 )
+		x: []float32{-2, -3, 0, 1, 2},
+		y: []float32{-1.1, 5, 0},
 		a: []float32{
 			1.3, 2.4, 3.5,
 			2.6, 2.8, 3.3,
@@ -44,138 +51,61 @@ var gerTests = []struct {
 			8, 9, -10,
 			-12, -14, -6,
 		},
-		x:    []float32{-2, -3, 0, 1, 2},
-		y:    []float32{-1.1, 5, 0},
 		want: []float32{3.5, -7.6, 3.5, 5.9, -12.2, 3.3, -1.3, -4.3, -9.7, 6.9, 14, -10, -14.2, -4, -6},
 	},
-	{
-		name: "M eq N",
-		m:    3,
-		n:    3,
-		a: []float32{
-			1.3, 2.4, 3.5,
-			2.6, 2.8, 3.3,
-			-1.3, -4.3, -9.7,
-		},
-		x:    []float32{-2, -3, 0},
-		y:    []float32{-1.1, 5, 0},
-		want: []float32{3.5, -7.6, 3.5, 5.9, -12.2, 3.3, -1.3, -4.3, -9.7},
-	},
-	{
-		name: "M lt N",
-		m:    3,
-		n:    6,
+	{ // 3 x 6 ( 2x4, 2x2, 1x4, 1x2 )
+		x: []float32{-2, -3, 0},
+		y: []float32{-1.1, 5, 0, 9, 19, 22},
 		a: []float32{
 			1.3, 2.4, 3.5, 4.8, 1.11, -9,
 			2.6, 2.8, 3.3, -3.4, 6.2, -8.7,
 			-1.3, -4.3, -9.7, -3.1, 8.9, 8.9,
 		},
-		x:    []float32{-2, -3, 0},
-		y:    []float32{-1.1, 5, 0, 9, 19, 22},
 		want: []float32{3.5, -7.6, 3.5, -13.2, -36.89, -53, 5.9, -12.2, 3.3, -30.4, -50.8, -74.7, -1.3, -4.3, -9.7, -3.1, 8.9, 8.9},
 	},
-	{
-		name: "M gt N",
-		m:    5,
-		n:    3,
+	{ // 5 x 5 ( 4x4, 4x1, 1x4, 1x1)
+		x: []float32{-2, 0, 2, 0, 7},
+		y: []float32{-1.1, 8, 7, 3, 5},
 		a: []float32{
-			1.3, 2.4, 3.5,
-			2.6, 2.8, 3.3,
-			-1.3, -4.3, -9.7,
-			8, 9, -10,
-			-12, -14, -6,
-		},
-		x:    []float32{-2, 0, 2, 0, 7},
-		y:    []float32{-1.1, 8, 7},
-		want: []float32{3.5, -13.6, -10.5, 2.6, 2.8, 3.3, -3.5, 11.7, 4.3, 8, 9, -10, -19.700000000000003, 42, 43},
-	},
-	{
-		name: "M eq N",
-		m:    3,
-		n:    3,
-		a: []float32{
-			1.3, 2.4, 3.5,
-			2.6, 2.8, 3.3,
-			-1.3, -4.3, -9.7,
-		},
-		x:    []float32{-2, 7, 12, -11},
-		y:    []float32{-1.1, 0, 6},
-		want: []float32{3.5, 2.4, -8.5, -5.1, 2.8, 45.3, -14.5, -4.3, 62.3},
-	},
-	{
-		name: "M lt N",
-		m:    3,
-		n:    6,
-		a:    []float32{1.3, 2.4, 3.5, 4.8, 1.11, -9, 2.6, 2.8, 3.3, -3.4, 6.2, -8.7, -1.3, -4.3, -9.7, -3.1, 8.9, 8.9},
-		x:    []float32{-2, 0, 9, -3},
-		y:    []float32{-1.1, 0, 19, 11, -9.22, 7},
-		want: []float32{3.5, 2.4, -34.5, -17.2, 19.55, -23, 2.6, 2.8, 3.3, -3.4, 6.2, -8.7, -11.2, -4.3, 161.3, 95.9, -74.08, 71.9},
-	},
-	{
-		name: "Y NaN element",
-		m:    1,
-		n:    1,
-		a:    []float32{1.3},
-		x:    []float32{1.3},
-		y:    []float32{float32(math.NaN())},
-		want: []float32{float32(math.NaN())},
-	},
-	{
-		name: "M eq N large",
-		m:    7,
-		n:    7,
-		x:    []float32{6.2, -5, 2.68, 3.4, -3.5, -4.2, 19.9},
-		y:    []float32{1.5, 21.7, -2.7, -11.9, 8.1, 3.1, 17},
-		a: []float32{
-			-20.5, 17.1, -8.4, -23.8, 3.9, 7.7, 6.25,
-			2.9, -0.29, 25.6, -9.4, 36.5, 9.7, 2.3,
-			4.1, -34.1, 10.3, 4.5, -42.05, 9.4, 4,
-			19.2, 9.8, -32.7, 4.1, 4.4, -22.5, -7.8,
-			3.6, -24.5, 21.7, 8.6, -13.82, 38.05, -2.29,
-			39.4, -40.5, 7.9, -2.5, -7.7, 18.1, -25.5,
-			-18.5, 43.2, 2.1, 30.1, 3.02, -31.1, -7.6,
+			1.3, 2.4, 3.5, 2.2, 8.3,
+			2.6, 2.8, 3.3, 4.4, -1.5,
+			-1.3, -4.3, -9.7, -8.8, 6.2,
+			8, 9, -10, -11, 12,
+			-12, -14, -6, -2, 4,
 		},
 		want: []float32{
-			-11.200001, 151.64, -25.14, -97.58, 54.120003, 26.919998, 111.649994,
-			-4.6, -108.79, 39.1, 50.1, -4, -5.8, -82.7,
-			8.12, 24.056004, 3.0639997, -27.392, -20.341997, 17.708, 49.56,
-			24.300001, 83.58001, -41.88, -36.36, 31.940002, -11.96, 50.000004,
-			-1.6500001, -100.450005, 31.150002, 50.25, -42.170002, 27.2, -61.79,
-			33.100002, -131.64, 19.24, 47.479996, -41.72, 5.080002, -96.899994,
-			11.349998, 475.03003, -51.63, -206.70998, 164.21, 30.589998, 330.69998,
+			3.5, -13.6, -10.5, -3.8, -1.7,
+			2.6, 2.8, 3.3, 4.4, -1.5,
+			-3.5, 11.7, 4.3, -2.8, 16.2,
+			8, 9, -10, -11, 12,
+			-19.700000000000003, 42, 43, 19, 39,
 		},
 	},
-	{
-		name: "M eq N large",
-		m:    7,
-		n:    7,
-		x:    []float32{6.2, -5, 88.68, 43.4, -30.5, -40.2, 19.9},
-		y:    []float32{1.5, 21.7, -28.7, -11.9, 18.1, 3.1, 21},
+	{ // 7 x 7 ( 4x4, 4x2, 4x1, 2x4, 2x2, 2x1, 1x4, 1x2, 1x1 ) < nan test >
+		x: []float32{-2, 8, 9, -3, -1.2, 5, 4.5},
+		y: []float32{-1.1, nan, 19, 11, -9.22, 7, 3.3},
 		a: []float32{
-			-20.5, 17.1, -8.4, -23.8, 3.9, 7.7, 6.25,
-			2.9, -0.29, 25.6, -9.4, 36.5, 9.7, 2.3,
-			4.1, -34.1, 10.3, 4.5, -42.05, 9.4, 4,
-			19.2, 9.8, -32.7, 4.1, 4.4, -22.5, -7.8,
-			3.6, -24.5, 21.7, 8.6, -13.82, 38.05, -2.29,
-			39.4, -40.5, 7.9, -2.5, -7.7, 18.1, -25.5,
-			-18.5, 43.2, 2.1, 30.1, 3.02, -31.1, -7.6,
+			1.3, 2.4, 3.5, 4.8, 1.11, -9, 2.2,
+			2.6, 2.8, 3.3, -3.4, 6.2, -8.7, 5.1,
+			-1.3, -4.3, -9.7, -3.1, 8.9, 8.9, 8,
+			5, -2.5, 1.8, -3.6, 2.8, 4.9, 7,
+			-1.3, -4.3, -9.7, -3.1, 8.9, 8.9, 8,
+			2.6, 2.8, 3.3, -3.4, 6.2, -8.7, 5.1,
+			1.3, 2.4, 3.5, 4.8, 1.11, -9, 2.2,
 		},
 		want: []float32{
-			-11.200001, 151.64, -186.34, -97.58, 116.12, 26.919998, 136.45,
-			-4.6, -108.79, 169.1, 50.1, -54, -5.8, -102.7,
-			137.12001, 1890.2561, -2534.816, -1050.792, 1563.058, 284.30798, 1866.28,
-			84.3, 951.5801, -1278.28, -512.36005, 789.94006, 112.03999, 903.60004,
-			-42.15, -686.35004, 897.05005, 371.55, -565.87, -56.499996, -642.79,
-			-20.900002, -912.84, 1161.6401, 475.88, -735.32007, -106.52, -869.7,
-			11.349998, 475.03003, -569.03, -206.70998, 363.21, 30.589998, 410.3,
+			3.5, nan, -34.5, -17.2, 19.55, -23, -4.4,
+			-6.2, nan, 155.3, 84.6, -67.56, 47.3, 31.5,
+			-11.2, nan, 161.3, 95.9, -74.08, 71.9, 37.7,
+			8.3, nan, -55.2, -36.6, 30.46, -16.1, -2.9,
+			0.02, nan, -32.5, -16.3, 19.964, 0.5, 4.04,
+			-2.9, nan, 98.3, 51.6, -39.9, 26.3, 21.6,
+			-3.65, nan, 89, 54.3, -40.38, 22.5, 17.05,
 		},
 	},
-	{
-		name: "M eq N xlarge",
-		m:    15,
-		n:    15,
-		x:    []float32{6.2, -5, 88.68, 43.4, -30.5, -40.2, 19.9, 3, 19.9, -40.2, -30.5, 43.4, 88.68, -5, 6.2},
-		y:    []float32{1.5, 21.7, -28.7, -11.9, 18.1, 3.1, 21, 8, 21, 3.1, 18.1, -11.9, -28.7, 21.7, 1.5},
+	{ // 15 x 15 ( 4x8 4x4, 4x2, 4x1, 2x8, 2x4, 2x2, 2x1, 1x8, 1x4, 1x2, 1x1 ) < nan test >
+		x: []float32{6.2, -5, 88.68, 43.4, -30.5, -40.2, 19.9, 3, 19.9, -40.2, -30.5, 43.4, 88.68, -5, 6.2},
+		y: []float32{1.5, 21.7, -28.7, -11.9, 18.1, 3.1, 21, 8, 21, 3.1, 18.1, -11.9, -28.7, 21.7, 1.5},
 		a: []float32{
 			-20.5, 17.1, -8.4, -23.8, 3.9, 7.7, 6.25, 2.9, -0.29, 25.6, -9.4, 36.5, 9.7, 2.3, 4.1,
 			-34.1, 10.3, 4.5, -42.05, 9.4, 4, 19.2, 9.8, -32.7, 4.1, 4.4, -22.5, -7.8, 3.6, -24.5,
@@ -215,131 +145,122 @@ var gerTests = []struct {
 
 func TestGer(t *testing.T) {
 	const (
-		xGdVal, yGdVal, aGdVal = -0.5, 1.5, -1
+		xGdVal, yGdVal, aGdVal = -0.5, 1.5, 10
 		gdLn                   = 4
 	)
-
-	for _, test := range gerTests {
-		var alpha float32 = 1.0
+	for i, test := range gerTests {
+		m, n := len(test.x), len(test.y)
 		for _, align := range align2 {
-			prefix := fmt.Sprintf("Test %v (%vx%v) (x:%v y:%v a:%v)", test.name, test.m, test.n, align.x, align.y, align.x^align.y)
-			xg, yg := guardVector(test.x, xGdVal, align.x+gdLn), guardVector(test.y, yGdVal, align.y+gdLn)
-			x, y := xg[align.x+gdLn:len(xg)-(align.x+gdLn)], yg[align.y+gdLn:len(yg)-(align.y+gdLn)]
-			ag := guardVector(test.a, aGdVal, align.x^align.y+gdLn)
-			a := ag[(align.x^align.y)+gdLn : len(ag)-(align.x^align.y+gdLn)]
-			Ger(test.m, test.n, alpha, x, 1, y, 1, a, test.n)
+			prefix := fmt.Sprintf("Test %v (%vx%v) align(x:%v,y:%v,a:%v)",
+				i, m, n, align.x, align.y, align.x^align.y)
+			xgLn, ygLn, agLn := gdLn+align.x, gdLn+align.y, gdLn+align.x^align.y
+			xg, yg := guardVector(test.x, xGdVal, xgLn), guardVector(test.y, yGdVal, ygLn)
+			x, y := xg[xgLn:len(xg)-xgLn], yg[ygLn:len(yg)-ygLn]
+			ag := guardVector(test.a, aGdVal, agLn)
+			a := ag[agLn : len(ag)-agLn]
+
+			var alpha float32 = 1.0
+			Ger(uintptr(m), uintptr(n), alpha, x, 1, y, 1, a, uintptr(n))
 			for i := range test.want {
 				if !within(a[i], test.want[i]) {
 					t.Errorf(msgVal, prefix, i, a[i], test.want[i])
+					return
 				}
 			}
-
-			if !isValidGuard(xg, xGdVal, gdLn) {
-				t.Errorf(msgGuard, prefix, "x", xg[:gdLn], xg[len(xg)-gdLn:])
+			if !isValidGuard(xg, xGdVal, xgLn) {
+				t.Errorf(msgGuard, prefix, "x", xg[:xgLn], xg[len(xg)-xgLn:])
 			}
-			if !isValidGuard(yg, yGdVal, gdLn) {
-				t.Errorf(msgGuard, prefix, "y", yg[:gdLn], yg[len(yg)-gdLn:])
+			if !isValidGuard(yg, yGdVal, ygLn) {
+				t.Errorf(msgGuard, prefix, "y", yg[:ygLn], yg[len(yg)-ygLn:])
 			}
-			if !isValidGuard(ag, aGdVal, gdLn) {
-				t.Errorf(msgGuard, prefix, "a", ag[:gdLn], ag[len(ag)-gdLn:])
-			}
-
-			if !sameStrided(test.x, x, 1) {
-				t.Errorf("%v: modified read-only x argument", prefix)
+			if !isValidGuard(ag, aGdVal, agLn) {
+				t.Errorf(msgGuard, prefix, "a", ag[:agLn], ag[len(ag)-agLn:])
+				t.Errorf(msgReadOnly, prefix, "x")
 			}
 			if !sameStrided(test.y, y, 1) {
-				t.Errorf("%v: modified read-only y argument", prefix)
+				t.Errorf(msgReadOnly, prefix, "y")
 			}
 		}
-		alpha = 3.0
-		for _, inc := range newIncSet(2, 3, 5) {
-			prefix := fmt.Sprintf("Test %v (%vx%v) inc (x:%v y:%v)", test.name, test.m, test.n, inc.x, inc.y)
 
+		for _, inc := range newIncSet(1, 2) {
+			prefix := fmt.Sprintf("Test %v (%vx%v) inc(x:%v,y:%v)", i, m, n, inc.x, inc.y)
 			xg := guardIncVector(test.x, xGdVal, inc.x, gdLn)
 			yg := guardIncVector(test.y, yGdVal, inc.y, gdLn)
 			x, y := xg[gdLn:len(xg)-gdLn], yg[gdLn:len(yg)-gdLn]
 			ag := guardVector(test.a, aGdVal, gdLn)
 			a := ag[gdLn : len(ag)-gdLn]
 
-			Ger(test.m, test.n, alpha, x, uintptr(inc.x), y, uintptr(inc.y), a, test.n)
+			var alpha float32 = 3.5
+			Ger(uintptr(m), uintptr(n), alpha,
+				x, uintptr(inc.x),
+				y, uintptr(inc.y),
+				a, uintptr(n))
 			for i := range test.want {
-				tmp := alpha*test.x[i/int(test.n)]*test.y[i%int(test.n)] + test.a[i]
-				if !within(a[i], tmp) {
-					t.Errorf(msgVal, prefix, i, a[i], tmp)
+				want := alpha*test.x[i/n]*test.y[i%n] + test.a[i]
+				if !within(a[i], want) {
+					t.Errorf(msgVal, prefix, i, a[i], want)
 				}
 			}
-
 			checkValidIncGuard(t, xg, xGdVal, inc.x, gdLn)
 			checkValidIncGuard(t, yg, yGdVal, inc.y, gdLn)
 			if !isValidGuard(ag, aGdVal, gdLn) {
 				t.Errorf(msgGuard, prefix, "a", ag[:gdLn], ag[len(ag)-gdLn:])
 			}
-
 			if !sameStrided(test.x, x, inc.x) {
-				t.Errorf("%v: modified read-only x argument", prefix)
+				t.Errorf(msgReadOnly, prefix, "x")
 			}
 			if !sameStrided(test.y, y, inc.y) {
-				t.Errorf("%v: modified read-only y argument", prefix)
-			}
-			if t.Failed() {
-				t.Log(test.x, "\n", test.y)
+				t.Errorf(msgReadOnly, prefix, "y")
 			}
 		}
 	}
 }
 
-type sgerer struct{}
-
-func (sgerer) Sger(m, n int, alpha float32, x []float32, incX int, y []float32, incY int, a []float32, lda int) {
-	Ger(uintptr(m), uintptr(n), alpha, x, uintptr(incX), y, uintptr(incY), a, uintptr(lda))
-}
-
-func BenchmarkBlasGer(t *testing.B) {
-	for _, dims := range newIncSet(3, 10, 30, 100, 300, 1000, 1e4, 1e5) {
+func BenchmarkGer(t *testing.B) {
+	const alpha = 3
+	for _, dims := range newIncSet(3, 10, 30, 100, 300, 1e3, 3e3, 1e4) {
 		m, n := dims.x, dims.y
-		if m/n >= 100 || n/m >= 100 || (m == 1e5 && n == 1e5) {
+		if m/n >= 100 || n/m >= 100 {
 			continue
 		}
-		for _, inc := range newIncSet(1, 2, 3, 4, 10) {
-			incX, incY := inc.x, inc.y
-			t.Run(fmt.Sprintf("Sger %dx%d (%d %d)", m, n, incX, incY), func(b *testing.B) {
-				for i := 0; i < t.N; i++ {
-					testblas.SgerBenchmark(b, sgerer{}, m, n, incX, incY)
+		for _, inc := range newIncSet(1, 3, 4, 10) {
+			t.Run(fmt.Sprintf("Dger %dx%d (%d %d)", m, n, inc.x, inc.y), func(b *testing.B) {
+				x, y, a := gerData(m, n, inc.x, inc.y)
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					Ger(uintptr(m), uintptr(n), alpha,
+						x, uintptr(inc.x),
+						y, uintptr(inc.y),
+						a, uintptr(n))
 				}
 			})
+
 		}
 	}
 }
 
-func GerOld(m, n uintptr, alpha float32,
-	x []float32, incX uintptr,
-	y []float32, incY uintptr,
-	a []float32, lda uintptr) {
-
-	if incX == 1 && incY == 1 {
-		x = x[:m]
-		y = y[:n]
-		for i, xv := range x {
-			AxpyUnitary(alpha*xv, y, a[uintptr(i)*lda:uintptr(i)*lda+n])
+func gerData(m, n, incX, incY int) (x, y, a []float32) {
+	x = make([]float32, m*incX)
+	y = make([]float32, n*incY)
+	a = make([]float32, m*n)
+	ln := len(x)
+	if len(y) > ln {
+		ln = len(y)
+	}
+	if len(a) > ln {
+		ln = len(a)
+	}
+	for i := 0; i < ln; i++ {
+		v := float32(i)
+		if i < len(a) {
+			a[i] = v
 		}
-		return
+		if i < len(x) {
+			x[i] = v
+		}
+		if i < len(y) {
+			y[i] = v
+		}
 	}
-
-	var ky, kx uintptr
-	if incY > 0 {
-		ky = 0
-	} else {
-		ky = -(n - 1) * incY
-	}
-	if incX > 0 {
-		kx = 0
-	} else {
-		kx = -(m - 1) * incX
-	}
-
-	ix := kx
-	for i := 0; i < int(m); i++ {
-		AxpyInc(alpha*x[ix], y, a[uintptr(i)*lda:uintptr(i)*lda+n], uintptr(n), uintptr(incY), 1, uintptr(ky), 0)
-		ix += incX
-	}
+	return x, y, a
 }

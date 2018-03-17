@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	msgRes   = "%v: unexpected result Got: %v Expected: %v"
-	msgVal   = "%v: unexpected value at %v Got: %v Expected: %v"
-	msgGuard = "%v: Guard violated in %s vector %v %v"
-	epsilon  = 1e-5
+	msgRes      = "%v: unexpected result Got: %v Expected: %v"
+	msgVal      = "%v: unexpected value at %v Got: %v Expected: %v"
+	msgGuard    = "%v: guard violated in %s vector %v %v"
+	msgReadOnly = "%v: modified read-only %v argument"
+	epsilon     = 1e-4
 )
 
 var (
