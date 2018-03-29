@@ -58,3 +58,44 @@ func ExamplePC() {
 	//        ⎢-5.2709   1.3570⎥
 	//        ⎣-5.7533   1.6207⎦
 }
+
+func ExamplePC_PrincipalComponents_mDS() {
+	// dists is the distance between major Australian cities.
+	// http://rosetta.reltech.org/TC/v15/Mapping/data/dist-Aus.csv
+	n := 8
+	dists := mat.NewSymDense(n, []float64{
+		0, 1328, 1600, 2616, 1161, 653, 2130, 1161,
+		1328, 0, 1962, 1289, 2463, 1889, 1991, 2026,
+		1600, 1962, 0, 2846, 1788, 1374, 3604, 732,
+		2616, 1289, 2846, 0, 3734, 3146, 2652, 3146,
+		1161, 2463, 1788, 3734, 0, 598, 3008, 1057,
+		653, 1889, 1374, 3146, 598, 0, 2720, 713,
+		2130, 1991, 3604, 2652, 3008, 2720, 0, 3288,
+		1161, 2026, 732, 3146, 1057, 713, 3288, 0,
+	})
+	/*
+		n := 4
+		dists := mat.NewSymDense(n, []float64{
+			0, 4.05, 8.25, 5.57,
+			4.05, 0, 2.54, 2.69,
+			8.25, 2.54, 0, 2.11,
+			5.57, 2.69, 2.11, 0,
+		})
+	*/
+
+	// Calculate the principal component direction vectors
+	// and variances.
+	var pc stat.PC
+	ok := pc.PrincipalComponents(stat.ClassicalScaling(nil, dists), nil)
+	if !ok {
+		return
+	}
+
+	// Project the data onto the first 2 (Euclidean) dimensions.
+	k := 2
+	coords := pc.VectorsTo(nil).Slice(0, n, 0, k)
+	fmt.Printf("coords = %f", mat.Formatted(coords, mat.Prefix("         ")))
+
+	// Output:
+	//
+}
